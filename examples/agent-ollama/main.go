@@ -30,6 +30,9 @@ import (
 
 	"go-micro.dev/v6"
 	"go-micro.dev/v6/agent"
+	"go-micro.dev/v6/client"
+	"go-micro.dev/v6/registry"
+	"go-micro.dev/v6/server"
 )
 
 // ---------------------------------------------------------------------------
@@ -132,7 +135,21 @@ func main() {
 	fmt.Println()
 
 	// 1. Start the knowledge service. Its handlers become agent tools.
-	svc := micro.NewService("knowledge")
+	//    Use in-memory registry and explicit loopback address to avoid
+	//    net.Interfaces() calls that fail on restricted environments
+	//    (e.g. Termux/Android).
+	reg := registry.NewMemoryRegistry()
+	cl := client.NewClient(client.Registry(reg))
+	srv := server.NewServer(
+		server.Registry(reg),
+		server.Address("127.0.0.1:0"),
+	)
+	svc := micro.NewService(
+		"knowledge",
+		micro.Server(srv),
+		micro.Client(cl),
+		micro.Registry(reg),
+	)
 	svc.Handle(new(KnowledgeService))
 	go svc.Run()
 
@@ -143,6 +160,9 @@ func main() {
 	//    as tools automatically, plus gets a custom "current_time" tool.
 	ag := micro.NewAgent("ollama-assistant",
 		micro.AgentServices("knowledge"),
+		agent.WithRegistry(reg),
+		agent.WithClient(cl),
+		agent.Address("127.0.0.1:0"),
 		micro.AgentPrompt(
 			"You are a helpful knowledge assistant. You can search and add to "+
 				"a knowledge base using the knowledge service tools. "+

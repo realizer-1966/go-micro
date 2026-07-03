@@ -95,6 +95,10 @@ func (p *Provider) isCloud() bool {
 // chatPath returns the API endpoint path for chat completions.
 func (p *Provider) chatPath() string {
 	if p.isCloud() {
+		// If the base URL already ends with /v1, don't duplicate it.
+		if strings.HasSuffix(strings.TrimRight(p.opts.BaseURL, "/"), "/v1") {
+			return "/chat/completions"
+		}
 		return "/v1/chat/completions"
 	}
 	return "/api/chat"
